@@ -125,7 +125,7 @@ export default function DocumentsPage() {
         {/* Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4, width: "100%" }}>
           {statCards.map((stat, index) => (
-            <Grid item xs={12} sm={6} md={3} key={stat.label}>
+            <Grid  size={{xs:12, sm:6, md:3}} key={stat.label}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

@@ -21,6 +21,7 @@ import Link from "next/link"
 import { useAssessments } from "../../lib/hooks/useAssessments"
 import { AssessmentWizard } from "../../components/assessments/AssessmentWizard"
 import { AssessmentList } from "../../components/assessments/AssessmentList"
+import { PrimaryButton } from "@/lib/utils/styledButton"
 
 export default function AssessmentsPage() {
   const { assessments, loading, createAssessment, runAssessment, deleteAssessment } = useAssessments()
@@ -106,27 +107,15 @@ export default function AssessmentsPage() {
                   documents, select frameworks, and get instant gap analysis with remediation plans.
                 </Typography>
               </Box>
-              <Button
-                variant="contained"
+              <PrimaryButton
+               
                 startIcon={<Plus />}
                 onClick={() => setWizardOpen(true)}
                 size="large"
-                sx={{
-                  px: 3,
-                  py: 1.5,
-                  borderRadius: 2,
-                  textTransform: "none",
-                  fontWeight: 600,
-                  background: "linear-gradient(135deg, rgba(69, 56, 202, 1) 0%, rgba(16, 185, 129, 1) 100%)",
-                  boxShadow: "0 4px 12px rgba(69, 56, 202, 0.25)",
-                  "&:hover": {
-                    background: "linear-gradient(135deg, rgba(59, 46, 172, 1) 0%, rgba(14, 165, 115, 1) 100%)",
-                    boxShadow: "0 6px 20px rgba(69, 56, 202, 0.35)",
-                  },
-                }}
+               
               >
                 New Assessment
-              </Button>
+              </PrimaryButton>
             </Box>
           </Box>
         </motion.div>
@@ -134,7 +123,7 @@ export default function AssessmentsPage() {
         {/* Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4, width: "100%" }}>
           {statCards.map((stat, index) => (
-            <Grid item xs={12} sm={6} md={3} key={stat.label}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }} key={stat.label}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -143,7 +132,7 @@ export default function AssessmentsPage() {
                 <Card
                   sx={{
                     height: "100%",
-                    minHeight: 160,
+                    minHeight: 80,
                     borderRadius: 3,
                     border: "1px solid",
                     borderColor: "divider",
@@ -156,10 +145,10 @@ export default function AssessmentsPage() {
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 3, height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                  <CardContent sx={{ p: 2, height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                     <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 1.5 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 1 }}>
                           {stat.label}
                         </Typography>
                         <Typography variant="h3" sx={{ fontWeight: 700, color: stat.color }}>
