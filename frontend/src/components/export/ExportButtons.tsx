@@ -1,0 +1,242 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Download, FileText, FileSpreadsheet, FileJson, Loader2 } from "lucide-react"
+import { AssessmentSummary, Finding, Requirement, Penalty, Obligation, Timeline, RemediationAction } from "@/lib/types"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
+interface ExportButtonsProps {
+  assessmentSummary: AssessmentSummary
+  findings?: Finding[]
+  requirements?: Requirement[]
+  penalties?: Penalty[]
+  obligations?: Obligation[]
+  timelines?: Timeline[]
+  actions?: RemediationAction[]
+}
+
+export function ExportButtons({
+  assessmentSummary,
+  findings = [],
+  requirements = [],
+  penalties = [],
+  obligations = [],
+  timelines = [],
+  actions = []
+}: ExportButtonsProps) {
+  const [loading, setLoading] = useState(false)
+
+  const exportToPDF = async () => {
+    setLoading(true)
+    try {
+      // Generate PDF content
+      const content = generatePDFContent()
+      
+      // Create blob and download
+      const blob = new Blob([content], { type: "application/pdf" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `assessment-${assessmentSummary.assessment_id}-report.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("PDF export failed:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const exportToCSV = () => {
+    setLoading(true)
+    try {
+      // Generate CSV for findings
+      const csv = generateCSV()
+      
+      // Create blob and download
+      const blob = new Blob([csv], { type: "text/csv" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `assessment-${assessmentSummary.assessment_id}-data.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const exportToJSON = () => {
+    setLoading(true)
+    try {
+      // Generate JSON export
+      const data = {
+        assessment: assessmentSummary,
+        findings,
+        requirements,
+        penalties,
+        obligations,
+        timelines,
+        remediation_actions: actions,
+        exported_at: new Date().toISOString()
+      }
+      
+      const json = JSON.stringify(data, null, 2)
+      
+      // Create blob and download
+      const blob = new Blob([json], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `assessment-${assessmentSummary.assessment_id}-export.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const generatePDFContent = () => {
+    // Simplified PDF generation (in production, use a library like jsPDF)
+    return `
+COMPLIANCE ASSESSMENT REPORT
+============================
+
+Assessment ID: ${assessmentSummary.assessment_id}
+Generated: ${new Date().toLocaleString()}
+
+EXECUTIVE SUMMARY
+-----------------
+Overall Compliance Score: ${assessmentSummary.score_total}%
+Residual Risk Level: ${assessmentSummary.residual_risk}
+
+CONTROL FAMILY BREAKDOWN
+-------------------------
+${Object.entries(assessmentSummary.family_breakdown || {}).map(([family, score]) => 
+  `${family}: ${score}%`
+).join('\n')}
+
+TOP GAPS
+--------
+${assessmentSummary.top_gaps?.map((gap, i) => `${i + 1}. ${gap}`).join('\n') || 'None identified'}
+
+QUICK WINS
+----------
+${assessmentSummary.quick_wins?.map((win, i) => `${i + 1}. ${win}`).join('\n') || 'None identified'}
+
+FINDINGS SUMMARY
+----------------
+Total Findings: ${findings.length}
+High Severity: ${findings.filter(f => f.severity === "H" || f.severity === "C").length}
+Medium Severity: ${findings.filter(f => f.severity === "M").length}
+Low Severity: ${findings.filter(f => f.severity === "L").length}
+
+REQUIREMENTS
+------------
+Total Requirements: ${requirements.length}
+MUST Requirements: ${requirements.filter(r => r.must_should === "MUST").length}
+SHOULD Requirements: ${requirements.filter(r => r.must_should === "SHOULD").length}
+
+PENALTIES & OBLIGATIONS
+-----------------------
+Penalties Identified: ${penalties.length}
+Legal Obligations: ${obligations.length}
+Compliance Deadlines: ${timelines.length}
+
+REMEDIATION PLAN
+----------------
+Total Actions: ${actions.length}
+P0 (Critical): ${actions.filter(a => a.priority === "P0").length}
+P1 (High): ${actions.filter(a => a.priority === "P1").length}
+P2 (Medium): ${actions.filter(a => a.priority === "P2").length}
+
+---
+This report is for informational purposes only and does not constitute legal advice.
+Generated by Compliance HealthCheck Platform
+`
+  }
+
+  const generateCSV = () => {
+    // Generate CSV for all findings and requirements
+    const headers = ["Type", "ID", "Title", "Severity", "Status", "Control Family", "Citations"]
+    const rows: string[][] = [headers]
+
+    // Add findings
+    findings.forEach(finding => {
+      rows.push([
+        finding.kind,
+        finding.id,
+        `"${finding.title}"`,
+        finding.severity,
+        "-",
+        finding.impact_area || "-",
+        `"${finding.refs.map(r => `${r.doc} p${r.page}`).join("; ")}"`
+      ])
+    })
+
+    // Add requirements
+    requirements.forEach(req => {
+      rows.push([
+        "requirement",
+        req.id,
+        `"${req.statement}"`,
+        req.must_should,
+        "-",
+        req.control_family,
+        `"${req.refs.map(r => `${r.doc} p${r.page}`).join("; ")}"`
+      ])
+    })
+
+    return rows.map(row => row.join(",")).join("\n")
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <Download className="mr-2 h-4 w-4" />
+              Export Report
+            </>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={exportToPDF}>
+          <FileText className="mr-2 h-4 w-4" />
+          <span>Export as PDF</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={exportToCSV}>
+          <FileSpreadsheet className="mr-2 h-4 w-4" />
+          <span>Export as CSV</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={exportToJSON}>
+          <FileJson className="mr-2 h-4 w-4" />
+          <span>Export as JSON</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
