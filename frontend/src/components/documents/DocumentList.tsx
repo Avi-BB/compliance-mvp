@@ -18,10 +18,14 @@ import {
   Box,
   LinearProgress,
   Avatar,
+  TablePagination,
+  TableFooter,
 } from "@mui/material"
 import { MoreVertical, FileText, Eye, Download, Trash2, Clock, CheckCircle, AlertCircle } from "lucide-react"
 import { format } from "date-fns"
 import type { Document } from "../../lib/slices/documentsSlice"
+import { DocumentViewDialog } from "./DocumentViewDialog"
+import { ConfirmationDialog } from "../common/ConfirmationDialog"
 
 interface DocumentListProps {
   documents: Document[]
@@ -31,15 +35,19 @@ interface DocumentListProps {
 export function DocumentList({ documents, loading }: DocumentListProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
-
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
+const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false)
+const [confirmationAction, setConfirmationAction] = useState<"delete" | "download" | null>(null)
+const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(5)
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, document: Document) => {
     setAnchorEl(event.currentTarget)
-    setSelectedDocument(document)
+    setSelectedDocument(document);
   }
 
   const handleMenuClose = () => {
     setAnchorEl(null)
-    setSelectedDocument(null)
+    // setSelectedDocument(null)
   }
 
   const getStatusColor = (status: Document["status"]) => {
@@ -121,6 +129,15 @@ export function DocumentList({ documents, loading }: DocumentListProps) {
       </Box>
     )
   }
+  const paginatedDocuments = documents.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage)
+  }
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10))
+    setPage(0)
+  }
 
   return (
     <>
@@ -138,7 +155,7 @@ export function DocumentList({ documents, loading }: DocumentListProps) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {documents.map((document) => (
+            {paginatedDocuments.map((document) => (
               <TableRow key={document.id} hover>
                 <TableCell>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -195,24 +212,67 @@ export function DocumentList({ documents, loading }: DocumentListProps) {
               </TableRow>
             ))}
           </TableBody>
+           <TableFooter>
+            <TableRow>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                count={documents.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+              />
+            </TableRow>
+          </TableFooter>
         </Table>
       </TableContainer>
 
       {/* Action Menu */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem   onClick={() => {
+      setViewDialogOpen(true)
+      handleMenuClose()
+    }}>
           <Eye size={16} style={{ marginRight: 8 }} />
           View Details
         </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
+        {/* <MenuItem onClick={() => {
+      setConfirmationAction("download")
+      setConfirmationDialogOpen(true)
+      handleMenuClose()
+    }}>
           <Download size={16} style={{ marginRight: 8 }} />
           Download
         </MenuItem>
-        <MenuItem onClick={handleMenuClose} sx={{ color: "error.main" }}>
+        <MenuItem onClick={() => {
+      setConfirmationAction("delete")
+      setConfirmationDialogOpen(true)
+      handleMenuClose()
+    }} sx={{ color: "error.main" }}>
           <Trash2 size={16} style={{ marginRight: 8 }} />
           Delete
-        </MenuItem>
+        </MenuItem> */}
       </Menu>
+
+      <DocumentViewDialog
+  open={viewDialogOpen}
+  document={selectedDocument}
+  onClose={() => setViewDialogOpen(false)}
+/>
+
+<ConfirmationDialog
+  open={confirmationDialogOpen}
+  title={confirmationAction === "delete" ? "Delete Document?" : "Download Document?"}
+  message={`Are you sure you want to ${
+    confirmationAction === "delete" ? "delete" : "download"
+  } this document?`}
+  onCancel={() => setConfirmationDialogOpen(false)}
+  // onConfirm={() => {
+  //   if (confirmationAction === "delete" && selectedDocument) deleteDocument(selectedDocument.id)
+  //   if (confirmationAction === "download" && selectedDocument) downloadDocument(selectedDocument.id)
+  //   setConfirmationDialogOpen(false)
+  // }}
+/>
     </>
   )
 }

@@ -192,19 +192,7 @@ export default function AssessmentsPage() {
                     View and manage your compliance assessment history
                   </Typography>
                 </Box>
-                <Button
-                  variant="outlined"
-                  startIcon={<Plus />}
-                  onClick={() => setWizardOpen(true)}
-                  size="small"
-                  sx={{
-                    textTransform: "none",
-                    fontWeight: 600,
-                    borderRadius: 2,
-                  }}
-                >
-                  Create New
-                </Button>
+                
               </Box>
               <AssessmentList
                 assessments={assessments}

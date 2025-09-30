@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Box, Typography, TextField, Select, MenuItem, Button, Chip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Table, TableHead, TableRow, TableCell, TableBody, FormControl, InputLabel, CircularProgress } from "@mui/material"
+import { Box, Typography, TextField, Select, MenuItem, Button, Chip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Table, TableHead, TableRow, TableCell, TableBody, FormControl, InputLabel, CircularProgress, TableFooter, TablePagination } from "@mui/material"
 import { Plus, Trash2, Edit, Search, Filter } from "lucide-react"
 import { useRequirements } from "../../lib/hooks/useRequirements"
 import type { Requirement } from "../../lib/types"
+import { PrimaryButton } from "@/lib/utils/styledButton"
 
 export const RequirementsManager = ({ assessmentId }: { assessmentId?: string }) => {
   const { requirements, loading, create, update, remove } = useRequirements(assessmentId)
@@ -13,6 +14,9 @@ export const RequirementsManager = ({ assessmentId }: { assessmentId?: string })
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [page, setPage] = useState(0)
+    const [rowsPerPage, setRowsPerPage] = useState(10)
+    
   const [formData, setFormData] = useState<Partial<Requirement>>({
     assessmentId: assessmentId || "",
     controlFamily: "Access",
@@ -71,7 +75,15 @@ export const RequirementsManager = ({ assessmentId }: { assessmentId?: string })
       }
     }
   }
+ const paginatedRequirements = filteredRequirements.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage)
+  }
 
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10))
+    setPage(0)
+  }
   return (
     <Box>
       <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
@@ -105,9 +117,9 @@ export const RequirementsManager = ({ assessmentId }: { assessmentId?: string })
             <MenuItem value="UNCERTAIN">Uncertain</MenuItem>
           </Select>
         </FormControl>
-        <Button variant="contained" startIcon={<Plus />} onClick={() => handleOpenDialog()} sx={{ height: 40 }}>
+        <PrimaryButton variant="contained" startIcon={<Plus />} onClick={() => handleOpenDialog()} sx={{ height: 40 }}>
           Add Requirement
-        </Button>
+        </PrimaryButton>
       </Box>
 
       {loading ? (
@@ -127,13 +139,13 @@ export const RequirementsManager = ({ assessmentId }: { assessmentId?: string })
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredRequirements.map((req) => (
+            {paginatedRequirements.map((req) => (
               <TableRow key={req.id}>
-                <TableCell>{req.controlIdExt || "N/A"}</TableCell>
+                <TableCell style={{maxWidth: 400,wordBreak:'break-all'}}>{req.controlIdExt || "N/A"}</TableCell>
                 <TableCell>
                   <Chip label={req.controlFamily} size="small" />
                 </TableCell>
-                <TableCell sx={{ maxWidth: 400 }}>{req.statement}</TableCell>
+                <TableCell sx={{ maxWidth: 400,wordBreak:'break-all' }}>{req.statement}</TableCell>
                 <TableCell>
                   <Chip label={req.mustShould} size="small" color={req.mustShould === "MUST" ? "error" : "warning"} />
                 </TableCell>
@@ -150,6 +162,7 @@ export const RequirementsManager = ({ assessmentId }: { assessmentId?: string })
                 </TableCell>
               </TableRow>
             ))}
+            
             {filteredRequirements.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 4, color: "text.secondary" }}>
@@ -157,7 +170,20 @@ export const RequirementsManager = ({ assessmentId }: { assessmentId?: string })
                 </TableCell>
               </TableRow>
             )}
+            
           </TableBody>
+           <TableFooter >
+                        <TableRow >
+                          <TablePagination
+                            rowsPerPageOptions={[5, 10, 25]}
+                            count={filteredRequirements.length}
+                            rowsPerPage={rowsPerPage}
+                            page={page}
+                            onPageChange={handleChangePage}
+                            onRowsPerPageChange={handleChangeRowsPerPage}
+                          />
+                        </TableRow>
+                      </TableFooter>
         </Table>
       )}
 
@@ -165,7 +191,7 @@ export const RequirementsManager = ({ assessmentId }: { assessmentId?: string })
         <DialogTitle>{editingId ? "Edit Requirement" : "Add Requirement"}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
-            <TextField label="Control ID (External)" value={formData.controlIdExt || ""} onChange={(e) => setFormData({ ...formData, controlIdExt: e.target.value })} />
+            <TextField label="Control ID (External)" inputProps={{maxLength: 100}} value={formData.controlIdExt || ""} onChange={(e) => setFormData({ ...formData, controlIdExt: e.target.value })} />
             <FormControl fullWidth>
               <InputLabel>Control Family</InputLabel>
               <Select value={formData.controlFamily} onChange={(e) => setFormData({ ...formData, controlFamily: e.target.value as Requirement["controlFamily"] })} label="Control Family">
@@ -177,7 +203,7 @@ export const RequirementsManager = ({ assessmentId }: { assessmentId?: string })
                 <MenuItem value="BCP">BCP</MenuItem>
               </Select>
             </FormControl>
-            <TextField label="Statement" multiline rows={3} value={formData.statement} onChange={(e) => setFormData({ ...formData, statement: e.target.value })} required />
+            <TextField label="Statement" inputProps={{maxLength: 500}} multiline rows={3} value={formData.statement} onChange={(e) => setFormData({ ...formData, statement: e.target.value })} required />
             <FormControl fullWidth>
               <InputLabel>Type</InputLabel>
               <Select value={formData.mustShould} onChange={(e) => setFormData({ ...formData, mustShould: e.target.value as "MUST" | "SHOULD" })} label="Type">
@@ -195,10 +221,11 @@ export const RequirementsManager = ({ assessmentId }: { assessmentId?: string })
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSubmit}>
+          <PrimaryButton variant="contained" onClick={handleSubmit}>
             {editingId ? "Update" : "Create"}
-          </Button>
+          </PrimaryButton>
+          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          
         </DialogActions>
       </Dialog>
     </Box>

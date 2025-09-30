@@ -16,6 +16,7 @@ import {
 } from "@mui/material"
 import { Upload, FileText, AlertCircle } from "lucide-react"
 import type { Document } from "../../lib/slices/documentsSlice"
+import { PrimaryButton } from "@/lib/utils/styledButton"
 
 interface DocumentUploadProps {
   onUpload: (file: File, metadata: { type: Document["type"]; description?: string }) => void
@@ -111,7 +112,7 @@ export function DocumentUpload({ onUpload, isUploading }: DocumentUploadProps) {
 
       {/* Selected File Info */}
       {selectedFile && (
-        <Box sx={{ mb: 3, p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
+        <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
             <FileText size={24} color="#4338ca" />
             <Box sx={{ flex: 1 }}>
@@ -146,6 +147,7 @@ export function DocumentUpload({ onUpload, isUploading }: DocumentUploadProps) {
             label="Description (Optional)"
             multiline
             rows={2}
+            inputProps={{maxLength: 200}}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Brief description of the document..."
@@ -153,9 +155,9 @@ export function DocumentUpload({ onUpload, isUploading }: DocumentUploadProps) {
           />
 
           {/* Upload Button */}
-          <Button variant="contained" onClick={handleUpload} disabled={isUploading} fullWidth sx={{ py: 1.5 }}>
+          <PrimaryButton variant="contained" onClick={handleUpload} disabled={isUploading} fullWidth>
             {isUploading ? "Uploading..." : "Upload Document"}
-          </Button>
+          </PrimaryButton>
 
           {isUploading && <LinearProgress sx={{ mt: 2 }} />}
         </Box>

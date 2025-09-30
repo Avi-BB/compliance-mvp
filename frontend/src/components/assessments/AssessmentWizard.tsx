@@ -26,6 +26,7 @@ import {
 import { FileText, Shield, Gavel, Lock, Brain, Building } from "lucide-react"
 import { useDocuments } from "../../lib/hooks/useDocuments"
 import type { Assessment } from "../../lib/slices/assessmentsSlice"
+import { PrimaryButton } from "@/lib/utils/styledButton"
 
 interface AssessmentWizardProps {
   onComplete: (assessment: Omit<Assessment, "id" | "createdAt" | "tenantId">) => void
@@ -155,17 +156,18 @@ export function AssessmentWizard({ onComplete }: AssessmentWizardProps) {
               Assessment Details
             </Typography>
             <Grid container spacing={3}>
-              <Grid item xs={12}>
+              <Grid size={{xs:12}}>
                 <TextField
                   fullWidth
                   label="Assessment Name"
+                  inputProps={{maxLength: 150}}
                   value={assessmentData.name}
                   onChange={(e) => setAssessmentData({ ...assessmentData, name: e.target.value })}
                   placeholder="e.g., Q1 2024 PCI DSS Assessment"
                   required
                 />
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid size={{xs:12, md:6}}>
                 <FormControl fullWidth>
                   <InputLabel>Jurisdiction (Optional)</InputLabel>
                   <Select
@@ -206,7 +208,7 @@ export function AssessmentWizard({ onComplete }: AssessmentWizardProps) {
                 {documents
                   .filter((d) => d.status === "ready")
                   .map((document) => (
-                    <Grid item xs={12} key={document.id}>
+                    <Grid size={{xs:12}} key={document.id}>
                       <Card variant="outlined">
                         <CardContent sx={{ py: 2 }}>
                           <FormControlLabel
@@ -253,7 +255,7 @@ export function AssessmentWizard({ onComplete }: AssessmentWizardProps) {
             </Typography>
             <Grid container spacing={3}>
               {promptPacks.map((pack) => (
-                <Grid item xs={12} md={6} key={pack.id}>
+                <Grid size={{xs:12, md:6}} key={pack.id}>
                   <Card
                     variant="outlined"
                     sx={{
@@ -306,7 +308,7 @@ export function AssessmentWizard({ onComplete }: AssessmentWizardProps) {
               Review Assessment
             </Typography>
             <Grid container spacing={3}>
-              <Grid item xs={12}>
+              <Grid size={{xs:12,md:6}}>
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
@@ -331,7 +333,7 @@ export function AssessmentWizard({ onComplete }: AssessmentWizardProps) {
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid size={{xs:12, md:6}}>
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
@@ -349,7 +351,7 @@ export function AssessmentWizard({ onComplete }: AssessmentWizardProps) {
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid size={{xs:12, md:6}}>
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
@@ -396,13 +398,13 @@ export function AssessmentWizard({ onComplete }: AssessmentWizardProps) {
         </Button>
         <Box>
           {activeStep === steps.length - 1 ? (
-            <Button variant="contained" onClick={handleComplete} disabled={!isStepValid(activeStep)}>
+            <PrimaryButton variant="contained" onClick={handleComplete} disabled={!isStepValid(activeStep)}>
               Create Assessment
-            </Button>
+            </PrimaryButton>
           ) : (
-            <Button variant="contained" onClick={handleNext} disabled={!isStepValid(activeStep)}>
+            <PrimaryButton variant="contained" onClick={handleNext} disabled={!isStepValid(activeStep)}>
               Next
-            </Button>
+            </PrimaryButton>
           )}
         </Box>
       </Box>

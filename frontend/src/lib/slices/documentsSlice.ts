@@ -12,6 +12,7 @@ export interface Document {
   hash?: string
   storageUri?: string
   tenantId: string
+  description?: string
 }
 
 interface DocumentsState {

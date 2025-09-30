@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
+import type React from "react";
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -23,104 +23,127 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-} from "@mui/material"
-import { MoreVertical, Play, Eye, Download, Trash2, Clock, CheckCircle, AlertCircle, FileText } from "lucide-react"
-import { format } from "date-fns"
-import type { Assessment } from "../../lib/slices/assessmentsSlice"
-import Link from "next/link"
+  TableFooter,
+  TablePagination,
+} from "@mui/material";
+import {
+  MoreVertical,
+  Play,
+  Eye,
+  Download,
+  Trash2,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  FileText,
+} from "lucide-react";
+import { format } from "date-fns";
+import type { Assessment } from "../../lib/slices/assessmentsSlice";
+import Link from "next/link";
 
 interface AssessmentListProps {
-  assessments: Assessment[]
-  loading: boolean
-  onRunAssessment: (assessmentId: string) => void
-  onDeleteAssessment?: (assessmentId: string) => void
+  assessments: Assessment[];
+  loading: boolean;
+  onRunAssessment: (assessmentId: string) => void;
+  onDeleteAssessment?: (assessmentId: string) => void;
 }
 
-export function AssessmentList({ assessments, loading, onRunAssessment, onDeleteAssessment }: AssessmentListProps) {
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-  const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+export function AssessmentList({
+  assessments,
+  loading,
+  onRunAssessment,
+  onDeleteAssessment,
+}: AssessmentListProps) {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedAssessment, setSelectedAssessment] =
+    useState<Assessment | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, assessment: Assessment) => {
-    setAnchorEl(event.currentTarget)
-    setSelectedAssessment(assessment)
-  }
+  const handleMenuOpen = (
+    event: React.MouseEvent<HTMLElement>,
+    assessment: Assessment
+  ) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedAssessment(assessment);
+  };
 
   const handleMenuClose = () => {
-    setAnchorEl(null)
-    setSelectedAssessment(null)
-  }
+    setAnchorEl(null);
+    setSelectedAssessment(null);
+  };
 
   const handleDeleteClick = () => {
-    setAnchorEl(null)
-    setDeleteDialogOpen(true)
-  }
+    setAnchorEl(null);
+    setDeleteDialogOpen(true);
+  };
 
   const handleDeleteConfirm = async () => {
-    if (!selectedAssessment || !onDeleteAssessment) return
-    
+    if (!selectedAssessment || !onDeleteAssessment) return;
+
     try {
-      setDeleting(true)
-      await onDeleteAssessment(selectedAssessment.id)
-      setDeleteDialogOpen(false)
-      setSelectedAssessment(null)
+      setDeleting(true);
+      await onDeleteAssessment(selectedAssessment.id);
+      setDeleteDialogOpen(false);
+      setSelectedAssessment(null);
     } catch (error) {
-      console.error("Failed to delete assessment:", error)
+      console.error("Failed to delete assessment:", error);
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
-  }
+  };
 
   const handleDeleteCancel = () => {
-    setDeleteDialogOpen(false)
-    setSelectedAssessment(null)
-  }
+    setDeleteDialogOpen(false);
+    setSelectedAssessment(null);
+  };
 
   const getStatusColor = (status: Assessment["status"]) => {
     switch (status) {
       case "completed":
-        return "success"
+        return "success";
       case "running":
-        return "warning"
+        return "warning";
       case "draft":
-        return "default"
+        return "default";
       case "failed":
-        return "error"
+        return "error";
       default:
-        return "default"
+        return "default";
     }
-  }
+  };
 
   const getStatusIcon = (status: Assessment["status"]) => {
     switch (status) {
       case "completed":
-        return <CheckCircle size={16} />
+        return <CheckCircle size={16} />;
       case "running":
-        return <Clock size={16} />
+        return <Clock size={16} />;
       case "draft":
-        return <FileText size={16} />
+        return <FileText size={16} />;
       case "failed":
-        return <AlertCircle size={16} />
+        return <AlertCircle size={16} />;
       default:
-        return <FileText size={16} />
+        return <FileText size={16} />;
     }
-  }
+  };
 
   const getRiskColor = (risk?: string) => {
     switch (risk) {
       case "Low":
-        return "#059669"
+        return "#059669";
       case "Medium":
-        return "#d97706"
+        return "#d97706";
       case "High":
-        return "#dc2626"
+        return "#dc2626";
       case "Critical":
-        return "#7c2d12"
+        return "#7c2d12";
       default:
-        return "#6b7280"
+        return "#6b7280";
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -130,7 +153,7 @@ export function AssessmentList({ assessments, loading, onRunAssessment, onDelete
           Loading assessments...
         </Typography>
       </Box>
-    )
+    );
   }
 
   if (assessments.length === 0) {
@@ -144,8 +167,22 @@ export function AssessmentList({ assessments, loading, onRunAssessment, onDelete
           Create your first compliance assessment to get started.
         </Typography>
       </Box>
-    )
+    );
   }
+  const paginatedAssessments = assessments.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
   return (
     <>
@@ -163,11 +200,13 @@ export function AssessmentList({ assessments, loading, onRunAssessment, onDelete
             </TableRow>
           </TableHead>
           <TableBody>
-            {assessments.map((assessment) => (
+            {paginatedAssessments.map((assessment) => (
               <TableRow key={assessment.id} hover>
                 <TableCell>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                    <Avatar sx={{ bgcolor: "primary.main", width: 40, height: 40 }}>
+                    <Avatar
+                      sx={{ bgcolor: "primary.main", width: 40, height: 40 }}
+                    >
                       <FileText size={20} />
                     </Avatar>
                     <Box>
@@ -175,7 +214,8 @@ export function AssessmentList({ assessments, loading, onRunAssessment, onDelete
                         {assessment.name}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {assessment.documentIds.length} documents • {assessment.jurisdiction || "No jurisdiction"}
+                        {assessment.documentIds.length} documents •{" "}
+                        {assessment.jurisdiction || "No jurisdiction"}
                       </Typography>
                     </Box>
                   </Box>
@@ -183,10 +223,19 @@ export function AssessmentList({ assessments, loading, onRunAssessment, onDelete
                 <TableCell>
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                     {assessment.promptPacks.slice(0, 2).map((pack) => (
-                      <Chip key={pack} label={pack.toUpperCase()} size="small" variant="outlined" />
+                      <Chip
+                        key={pack}
+                        label={pack.toUpperCase()}
+                        size="small"
+                        variant="outlined"
+                      />
                     ))}
                     {assessment.promptPacks.length > 2 && (
-                      <Chip label={`+${assessment.promptPacks.length - 2}`} size="small" variant="outlined" />
+                      <Chip
+                        label={`+${assessment.promptPacks.length - 2}`}
+                        size="small"
+                        variant="outlined"
+                      />
                     )}
                   </Box>
                 </TableCell>
@@ -255,7 +304,10 @@ export function AssessmentList({ assessments, loading, onRunAssessment, onDelete
                         View
                       </Button>
                     )}
-                    <IconButton size="small" onClick={(e) => handleMenuOpen(e, assessment)}>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleMenuOpen(e, assessment)}
+                    >
                       <MoreVertical size={16} />
                     </IconButton>
                   </Box>
@@ -263,11 +315,27 @@ export function AssessmentList({ assessments, loading, onRunAssessment, onDelete
               </TableRow>
             ))}
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                count={assessments.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+              />
+            </TableRow>
+          </TableFooter>
         </Table>
       </TableContainer>
 
       {/* Action Menu */}
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
         {selectedAssessment?.status === "completed" && (
           <MenuItem
             component={Link}
@@ -295,18 +363,24 @@ export function AssessmentList({ assessments, loading, onRunAssessment, onDelete
         <DialogTitle>Delete Assessment</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete "{selectedAssessment?.name}"? This action cannot be undone.
+            Are you sure you want to delete "{selectedAssessment?.name}"? This
+            action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} disabled={deleting}>
             Cancel
           </Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained" disabled={deleting}>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleting}
+          >
             {deleting ? "Deleting..." : "Delete"}
           </Button>
         </DialogActions>
       </Dialog>
     </>
-  )
+  );
 }
