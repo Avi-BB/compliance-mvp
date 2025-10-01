@@ -328,20 +328,44 @@ export interface Score {
   quickWins: string[]
   clarifications: string[]
 }
-
+export interface RemediationTask {
+  id: string
+  title: string
+  status: "pending" | "in-progress" | "completed"
+}
 // Remediation Actions
 export interface RemediationAction {
   id: string
-  assessmentId: string
+  findingId?:string
+  assessmentId?: string
   title: string
-  priority: "P0" | "P1" | "P2"
-  owner: string
-  effort: "S" | "M" | "L"
+  description: string
+  priority: "critical" | "high" | "medium" | "low"
+  status: "not-started" | "in-progress" | "completed" | "overdue"
+  progress: number
+  assignee: string
+  dueDate: string
+  estimatedEffort: string
+  framework: string
+  findings: string[]
+  tasks: RemediationTask[]
+  owner?: string
+  effort?: "S" | "M" | "L"
   dependency?: string
   dueBy?: string
   mappedSolution?: string
+  refs?: DocumentReference[]
+}
+
+export interface CreateRemediationPlanForm {
+  findingId: string
+  title: string
+  description: string
+  priority: "low" | "medium" | "high" | "critical"
+  estimatedEffortHours?: number
+  ownerSuggested: string
   status: "pending" | "in_progress" | "completed"
-  refs: DocumentReference[]
+  dueDate: string
 }
 
 // Audit Trail

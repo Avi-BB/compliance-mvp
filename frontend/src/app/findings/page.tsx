@@ -25,6 +25,8 @@ import {
   LinearProgress,
   Avatar,
   Tooltip,
+  TablePagination,
+  CircularProgress,
 } from "@mui/material"
 import {
   FindInPage,
@@ -41,85 +43,14 @@ import {
 import { Sparkles } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
-
-interface Finding {
-  id: string
-  title: string
-  description: string
-  severity: "critical" | "high" | "medium" | "low"
-  status: "open" | "in-progress" | "resolved" | "closed"
-  framework: string
-  category: string
-  assignee: string
-  dueDate: string
-  createdDate: string
-  riskScore: number
-}
-
-interface FindingFormData {
-  title: string
-  description: string
-  severity: "critical" | "high" | "medium" | "low"
-  framework: string
-  category: string
-  assignee: string
-  dueDate: string
-}
-
-const mockFindings: Finding[] = [
-  {
-    id: "1",
-    title: "Inadequate Access Control Implementation",
-    description: "User access controls do not meet PCI DSS requirements for privileged access management.",
-    severity: "critical",
-    status: "open",
-    framework: "PCI DSS",
-    category: "Access Control",
-    assignee: "John Smith",
-    dueDate: "2024-02-15",
-    createdDate: "2024-01-15",
-    riskScore: 95,
-  },
-  {
-    id: "2",
-    title: "Missing Data Encryption at Rest",
-    description: "Sensitive customer data is not encrypted when stored in the database.",
-    severity: "high",
-    status: "in-progress",
-    framework: "GDPR",
-    category: "Data Protection",
-    assignee: "Sarah Johnson",
-    dueDate: "2024-02-20",
-    createdDate: "2024-01-10",
-    riskScore: 85,
-  },
-  {
-    id: "3",
-    title: "Incomplete Incident Response Documentation",
-    description: "Incident response procedures lack detailed escalation protocols.",
-    severity: "medium",
-    status: "resolved",
-    framework: "ISO 27001",
-    category: "Incident Response",
-    assignee: "Mike Davis",
-    dueDate: "2024-01-30",
-    createdDate: "2024-01-05",
-    riskScore: 65,
-  },
-  {
-    id: "4",
-    title: "Outdated Security Awareness Training",
-    description: "Employee security training materials are over 12 months old.",
-    severity: "low",
-    status: "open",
-    framework: "ISO 27001",
-    category: "Training",
-    assignee: "Lisa Wilson",
-    dueDate: "2024-03-01",
-    createdDate: "2024-01-20",
-    riskScore: 35,
-  },
-]
+import { LoadingButton } from "@mui/lab"
+import CommonActionDialog from "@/lib/utils/components/CommonActionDialog"
+import { createFinding, fetchFindings, updateFinding } from "@/lib/slices/findingsSlice"
+import { useAppDispatch, useAppSelector } from "@/lib/hooks"
+import AddFindingDialog from "@/components/findings/AddFindingDialog"
+import { CreateFindingRequest, Finding } from "@/lib/api/findings"
+import { formatDate } from "@/lib/utils/formatDate"
+import { PrimaryButton } from "@/lib/utils/styledButton"
 
 const getSeverityColor = (severity: string) => {
   switch (severity) {
@@ -166,63 +97,73 @@ const getStatusColor = (status: string) => {
   }
 }
 
-// Locale-stable date formatter to prevent hydration mismatches
-const formatDate = (iso: string) =>
-  new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso))
 
 export default function FindingsPage() {
-  const [findings, setFindings] = useState<Finding[]>(mockFindings)
   const [openDialog, setOpenDialog] = useState(false)
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null)
   const [filterSeverity, setFilterSeverity] = useState("")
   const [filterStatus, setFilterStatus] = useState("")
   const [filterFramework, setFilterFramework] = useState("")
-  const [isMounted, setIsMounted] = useState(false)
+
+  const [editingFinding, setEditingFinding] = useState<Finding | null>(null);
+
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [findingToDelete, setFindingToDelete] = useState<Finding | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
+
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage)
+  }
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10))
+    setPage(0)
+  }
+
+  const dispatch = useAppDispatch()
+
+  const { findings, isFindingsLoading, findingsCount } = useAppSelector((state) => state.findings)
 
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+    dispatch(fetchFindings({
+      severity: filterSeverity || undefined,
+      status: filterStatus || undefined,
+      framework: filterFramework || undefined,
+      skip: page * rowsPerPage,
+      limit: rowsPerPage,
+    }));
+  }, [dispatch, filterSeverity, filterStatus, filterFramework, page, rowsPerPage]);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<FindingFormData>()
-
-  const filteredFindings = findings.filter((finding) => {
-    return (
-      (!filterSeverity || finding.severity === filterSeverity) &&
-      (!filterStatus || finding.status === filterStatus) &&
-      (!filterFramework || finding.framework === filterFramework)
-    )
-  })
-
-  const onSubmit = async (data: FindingFormData) => {
-    console.log("[v0] Finding data:", data)
-    const newFinding: Finding = {
-      id: Date.now().toString(),
-      ...data,
-      status: "open",
-      createdDate: new Date().toISOString().split("T")[0],
-      riskScore:
-        data.severity === "critical" ? 95 : data.severity === "high" ? 80 : data.severity === "medium" ? 60 : 30,
+  const onSubmit = async (data: CreateFindingRequest) => {
+    try {
+      if (editingFinding) {
+        await dispatch(updateFinding({ id: editingFinding, ...data }))
+      } else {
+        await dispatch(createFinding(data))
+      }
+      dispatch(fetchFindings({}))
+      setOpenDialog(false)
+      setEditingFinding(null)
+    } catch (err) {
+      console.error("Unexpected error:", err)
     }
-    setFindings([...findings, newFinding])
-    setOpenDialog(false)
-    reset()
   }
 
   const handleViewFinding = (finding: Finding) => {
     setSelectedFinding(finding)
   }
 
-  const handleDeleteFinding = (id: string) => {
-    setFindings(findings.filter((f) => f.id !== id))
-  }
+  const handleEditFinding = (finding: Finding) => {
+    setEditingFinding(finding);
+    setOpenDialog(true);
+  };
 
-  const handleStatusChange = (id: string, newStatus: Finding["status"]) => {
-    setFindings(findings.map((f) => (f.id === id ? { ...f, status: newStatus } : f)))
+  const handleCloseDialog = (open: boolean) => {
+    setOpenDialog(open)
+    setEditingFinding(null)
   }
 
   const severityStats = {
@@ -268,8 +209,8 @@ export default function FindingsPage() {
   ]
 
   return (
-    <Box sx={{ 
-      flexGrow: 1, 
+    <Box sx={{
+      flexGrow: 1,
       minHeight: "100vh",
       background: "linear-gradient(135deg, rgba(69, 56, 202, 0.03) 0%, transparent 50%, rgba(16, 185, 129, 0.03) 100%)",
     }}>
@@ -301,32 +242,16 @@ export default function FindingsPage() {
                 Track and manage compliance findings with intelligent risk scoring and remediation tracking
               </Typography>
             </Box>
-            <Button 
-              variant="contained" 
-              startIcon={<Add />} 
-              onClick={() => setOpenDialog(true)}
-              sx={{
-                px: 3,
-                py: 1.5,
-                borderRadius: 2,
-                fontWeight: 600,
-                background: "linear-gradient(135deg, rgba(69, 56, 202, 1) 0%, rgba(16, 185, 129, 1) 100%)",
-                boxShadow: "0 4px 12px rgba(69, 56, 202, 0.25)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, rgba(59, 46, 172, 1) 0%, rgba(14, 165, 115, 1) 100%)",
-                  boxShadow: "0 6px 20px rgba(69, 56, 202, 0.35)",
-                },
-              }}
-            >
-              Add Finding
-            </Button>
+            <PrimaryButton startIcon={<Add />} onClick={() => setOpenDialog(true)}> 
+               Add Finding
+            </PrimaryButton>
           </Box>
         </motion.div>
 
         {/* Statistics Cards */}
         <Grid container spacing={3} sx={{ mb: 4, width: "100%" }}>
           {statCards.map((stat, index) => (
-            <Grid item xs={12} sm={6} md={3} key={stat.label}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }} key={stat.label}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -335,10 +260,10 @@ export default function FindingsPage() {
                 <Card
                   sx={{
                     height: "100%",
-                    minHeight: 160,
+                    minHeight: 80,
                     borderRadius: 3,
                     border: "1px solid",
-                    borderColor: "divider",
+                    borderColor: stat.bgColor,
                     background: stat.gradient,
                     transition: "all 0.3s ease",
                     "&:hover": {
@@ -351,7 +276,7 @@ export default function FindingsPage() {
                   <CardContent sx={{ p: 3, height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                     <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography color="text.secondary" variant="body2" sx={{ fontWeight: 500, mb: 1.5 }}>
+                        <Typography color="text.secondary" variant="body1" sx={{ fontWeight: 500, mb: 1.5 }}>
                           {stat.label}
                         </Typography>
                         <Typography variant="h3" sx={{ fontWeight: 700, color: stat.color }}>
@@ -368,7 +293,7 @@ export default function FindingsPage() {
                           ml: 2,
                         }}
                       >
-                        <stat.icon style={{ color: stat.color }} />
+                        <stat.icon sx={{ color: stat.color }} />
                       </Box>
                     </Box>
                   </CardContent>
@@ -432,11 +357,13 @@ export default function FindingsPage() {
                 </TextField>
                 <Button
                   variant="outlined"
+                  size="small"
                   onClick={() => {
                     setFilterSeverity("")
                     setFilterStatus("")
                     setFilterFramework("")
                   }}
+                  sx={{ py: 0.7 }}
                 >
                   Clear Filters
                 </Button>
@@ -476,204 +403,153 @@ export default function FindingsPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filteredFindings.map((finding) => (
-                      <TableRow key={finding.id} hover>
-                        <TableCell>
-                          <Box>
-                            <Typography variant="body2" fontWeight="medium">
-                              {finding.title}
-                            </Typography>
-                            <Typography variant="caption" color="textSecondary">
-                              {finding.category}
-                            </Typography>
+                    {isFindingsLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} align="center">
+                          <Box sx={{ py: 3 }}>
+                            <CircularProgress />
                           </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            icon={getSeverityIcon(finding.severity)}
-                            label={finding.severity}
-                            color={getSeverityColor(finding.severity)}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={finding.status.replace("-", " ")}
-                            color={getStatusColor(finding.status)}
-                            size="small"
-                            onClick={() => {
-                              const statuses: Finding["status"][] = ["open", "in-progress", "resolved", "closed"]
-                              const currentIndex = statuses.indexOf(finding.status)
-                              const nextStatus = statuses[(currentIndex + 1) % statuses.length]
-                              handleStatusChange(finding.id, nextStatus)
-                            }}
-                            sx={{ cursor: "pointer" }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip label={finding.framework} variant="outlined" size="small" />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{finding.assignee}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color={isMounted && new Date(finding.dueDate) < new Date() ? "error" : "inherit"}>
-                            {formatDate(finding.dueDate)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                            <LinearProgress
-                              variant="determinate"
-                              value={finding.riskScore}
-                              sx={{
-                                width: 60,
-                                height: 6,
-                                borderRadius: 3,
-                                backgroundColor: "grey.200",
-                                "& .MuiLinearProgress-bar": {
-                                  backgroundColor:
-                                    finding.riskScore >= 80
-                                      ? "error.main"
-                                      : finding.riskScore >= 60
-                                        ? "warning.main"
-                                        : "success.main",
-                                },
-                              }}
-                            />
-                            <Typography variant="body2">{finding.riskScore}</Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Tooltip title="View Details">
-                            <IconButton size="small" onClick={() => handleViewFinding(finding)}>
-                              <Visibility />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Edit">
-                            <IconButton size="small">
-                              <Edit />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete">
-                            <IconButton size="small" onClick={() => handleDeleteFinding(finding.id)}>
-                              <Delete />
-                            </IconButton>
-                          </Tooltip>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : findings.length > 0 ? (
+                      findings.map((finding) => (
+                        <TableRow key={finding.id} hover>
+                          <TableCell>
+                            <Box>
+                              <Typography variant="body2" fontWeight="medium">
+                                {finding.title}
+                              </Typography>
+                              <Typography variant="caption" color="textSecondary">
+                                {finding.category}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              icon={getSeverityIcon(finding.severity)}
+                              label={finding.severity}
+                              color={getSeverityColor(finding.severity)}
+                              size="small"
+                              sx={{ textTransform: "capitalize" }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={finding.status.replace("-", " ")}
+                              color={getStatusColor(finding.status)}
+                              size="small"
+                              onClick={() => {
+                                const statuses: Finding["status"][] = ["open", "in-progress", "resolved", "closed"];
+                                const currentIndex = statuses.indexOf(finding.status);
+                                const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+                                // Call your update function here
+                              }}
+                              sx={{ cursor: "pointer", textTransform: "capitalize" }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip label={finding.framework} variant="outlined" size="small" />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">{finding.assignee}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography
+                              variant="body2"
+                              color={new Date(finding.dueDate) < new Date() ? "error" : "inherit"}
+                            >
+                              {formatDate(finding.dueDate)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={finding.riskScore}
+                                sx={{
+                                  width: 60,
+                                  height: 6,
+                                  borderRadius: 3,
+                                  backgroundColor: "grey.200",
+                                  "& .MuiLinearProgress-bar": {
+                                    backgroundColor:
+                                      finding.riskScore >= 80
+                                        ? "error.main"
+                                        : finding.riskScore >= 60
+                                          ? "warning.main"
+                                          : "success.main",
+                                  },
+                                }}
+                              />
+                              <Typography variant="body2">{finding.riskScore}</Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right">
+                            {finding.status !== "closed" ? (
+                              <>
+                                <Tooltip title="View Details">
+                                  <IconButton size="small" onClick={() => handleViewFinding(finding)}>
+                                    <Visibility />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Edit">
+                                  <IconButton size="small" onClick={() => handleEditFinding(finding)}>
+                                    <Edit />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Delete">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                      setFindingToDelete(finding);
+                                      setOpenDeleteDialog(true);
+                                    }}
+                                  >
+                                    <Delete />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            ) : (
+                              <Tooltip title="View Details">
+                                <IconButton size="small" onClick={() => handleViewFinding(finding)}>
+                                  <Visibility />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={8} align="center">
+                          No findings found.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
+
                 </Table>
               </TableContainer>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                component="div"
+                count={findingsCount}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+              />
             </CardContent>
           </Card>
         </motion.div>
 
         {/* Add Finding Dialog */}
-        <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
-          <DialogTitle>Add New Finding</DialogTitle>
-          <DialogContent>
-            <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 2 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Title"
-                    error={!!errors.title}
-                    helperText={errors.title?.message}
-                    {...register("title", { required: "Title is required" })}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Description"
-                    multiline
-                    rows={3}
-                    error={!!errors.description}
-                    helperText={errors.description?.message}
-                    {...register("description", { required: "Description is required" })}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    select
-                    label="Severity"
-                    error={!!errors.severity}
-                    helperText={errors.severity?.message}
-                    {...register("severity", { required: "Severity is required" })}
-                  >
-                    <MenuItem value="critical">Critical</MenuItem>
-                    <MenuItem value="high">High</MenuItem>
-                    <MenuItem value="medium">Medium</MenuItem>
-                    <MenuItem value="low">Low</MenuItem>
-                  </TextField>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    select
-                    label="Framework"
-                    error={!!errors.framework}
-                    helperText={errors.framework?.message}
-                    {...register("framework", { required: "Framework is required" })}
-                  >
-                    <MenuItem value="PCI DSS">PCI DSS</MenuItem>
-                    <MenuItem value="GDPR">GDPR</MenuItem>
-                    <MenuItem value="ISO 27001">ISO 27001</MenuItem>
-                    <MenuItem value="SOX">SOX</MenuItem>
-                  </TextField>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Category"
-                    error={!!errors.category}
-                    helperText={errors.category?.message}
-                    {...register("category", { required: "Category is required" })}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Assignee"
-                    error={!!errors.assignee}
-                    helperText={errors.assignee?.message}
-                    {...register("assignee", { required: "Assignee is required" })}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Due Date"
-                    type="date"
-                    InputLabelProps={{ shrink: true }}
-                    error={!!errors.dueDate}
-                    helperText={errors.dueDate?.message}
-                    {...register("dueDate", { required: "Due date is required" })}
-                  />
-                </Grid>
-              </Grid>
-            </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-            <Button 
-              variant="contained" 
-              onClick={handleSubmit(onSubmit)}
-              sx={{
-                background: "linear-gradient(135deg, rgba(69, 56, 202, 1) 0%, rgba(16, 185, 129, 1) 100%)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, rgba(59, 46, 172, 1) 0%, rgba(14, 165, 115, 1) 100%)",
-                },
-              }}
-            >
-              Add Finding
-            </Button>
-          </DialogActions>
-        </Dialog>
+        <AddFindingDialog
+          openDialog={openDialog}
+          setOpenDialog={handleCloseDialog}
+          editingFinding={editingFinding}
+          onSubmitFinding={onSubmit}
+        />
 
         {/* View Finding Dialog */}
         <Dialog open={!!selectedFinding} onClose={() => setSelectedFinding(null)} maxWidth="md" fullWidth>
@@ -688,40 +564,42 @@ export default function FindingsPage() {
                   {selectedFinding.description}
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="subtitle2">Severity:</Typography>
                     <Chip
                       icon={getSeverityIcon(selectedFinding.severity)}
                       label={selectedFinding.severity}
                       color={getSeverityColor(selectedFinding.severity)}
                       size="small"
+                      sx={{ textTransform: "capitalize" }}
                     />
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="subtitle2">Status:</Typography>
                     <Chip
                       label={selectedFinding.status.replace("-", " ")}
                       color={getStatusColor(selectedFinding.status)}
                       size="small"
+                      sx={{ textTransform: "capitalize" }}
                     />
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="subtitle2">Framework:</Typography>
                     <Typography variant="body2">{selectedFinding.framework}</Typography>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="subtitle2">Category:</Typography>
                     <Typography variant="body2">{selectedFinding.category}</Typography>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="subtitle2">Assignee:</Typography>
                     <Typography variant="body2">{selectedFinding.assignee}</Typography>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="subtitle2">Due Date:</Typography>
                     <Typography variant="body2">{formatDate(selectedFinding.dueDate)}</Typography>
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="subtitle2">Risk Score:</Typography>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
                       <LinearProgress
@@ -754,6 +632,24 @@ export default function FindingsPage() {
           </DialogActions>
         </Dialog>
       </Container>
+
+      {findingToDelete && (
+        <CommonActionDialog
+          open={openDeleteDialog}
+          onClose={() => setOpenDeleteDialog(false)}
+          onConfirm={async () => {
+            setIsDeleting(true);
+
+          }}
+          isLoading={isDeleting}
+          title="Confirm Delete"
+          description="Are you sure you want to delete this finding? This action cannot be undone."
+          itemName={findingToDelete.title}
+          iconType="delete"
+          iconColor="#F44336"
+        />
+      )}
+
     </Box>
   )
 }
